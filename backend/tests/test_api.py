@@ -114,12 +114,57 @@ def test_admin_route_requires_admin_role() -> None:
         assert client.get("/api/v1/admin/dashboard", headers=headers).status_code == 403
 
 
+def test_ground_stations_listing() -> None:
+    with TestClient(app) as client:
+        headers = register_and_login(client, "station_user@example.com")
+        response = client.get("/api/v1/ground-stations", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["total"] >= 1
+        assert response.json()["items"][0]["name"] == "Demo Ground Station"
+
+
 def test_database_relationships() -> None:
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.email == "owner@example.com"))
         assert user is not None
         assert user.role.name == "user"
         assert len(user.simulations) >= 1
+
+
+def test_passes_telemetry_and_simulation_reports() -> None:
+    with TestClient(app) as client:
+        headers = register_and_login(client, "advanced_sim@example.com")
+        # Test satellite telemetry
+        satellites = client.get("/api/v1/satellites", headers=headers).json()
+        sat_id = satellites["items"][0]["id"]
+        telemetry = client.get(f"/api/v1/satellites/{sat_id}/telemetry", headers=headers)
+        assert telemetry.status_code == 200
+        data = telemetry.json()
+        assert "subsatellite_latitude_deg" in data
+        assert "orbital_velocity_km_s" in data
+        assert data["orbital_velocity_km_s"] > 5.0
+
+        # Test pass predictions
+        passes = client.get("/api/v1/simulations/passes?latitude_deg=12.9716&longitude_deg=77.5946&duration_hours=6", headers=headers)
+        assert passes.status_code == 200
+        assert "passes" in passes.json()
+        assert passes.json()["total_passes"] >= 1
+
+        # Test simulation creation, report and CSV export
+        sim = client.post("/api/v1/simulations", headers=headers, json={"latitude_deg": 12.9716, "longitude_deg": 77.5946})
+        assert sim.status_code == 201
+        sim_id = sim.json()["id"]
+
+        report = client.get(f"/api/v1/simulations/{sim_id}/report", headers=headers)
+        assert report.status_code == 200
+        rep_json = report.json()
+        assert "rf_link_budget" in rep_json
+        assert "free_space_path_loss_db" in rep_json["rf_link_budget"]
+
+        export = client.get(f"/api/v1/simulations/{sim_id}/export.csv", headers=headers)
+        assert export.status_code == 200
+        assert "text/csv" in export.headers["content-type"]
+        assert "simulation_id" in export.text
 
 
 def register_and_login(client: TestClient, email: str) -> dict[str, str]:

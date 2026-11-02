@@ -9,7 +9,7 @@ from pwdlib import PasswordHash
 
 SECRET_KEY = os.getenv("SECRET_KEY", "local-development-key-change-before-deployment")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "30"))
+ACCESS_TOKEN_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "1440"))
 password_hash = PasswordHash.recommended()
 
 

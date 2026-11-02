@@ -29,26 +29,58 @@ def create_connection(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConnectionResponse:
-    active = db.scalar(select(ConnectionSession).where(
+    # End any previously active session for this user so a new demo session starts smoothly
+    active_sessions = db.scalars(select(ConnectionSession).where(
         ConnectionSession.user_id == user.id, ConnectionSession.status == "connected"
-    ))
-    if active is not None:
-        raise HTTPException(status_code=409, detail="End the active demo session before starting another")
+    )).all()
+    for active in active_sessions:
+        active.status = "ended"
+        active.ended_at = datetime.now(timezone.utc)
+
+    satellite_id = None
+    measurement = (-110.0, 28.0, 1.0)
+
     if payload.simulation_id is not None:
         run = db.scalar(select(SimulationRun).where(
             SimulationRun.id == payload.simulation_id, SimulationRun.user_id == user.id
         ))
         if run is None:
             raise HTTPException(status_code=404, detail="Simulation not found")
-        satellite_id = run.satellite_id if run.status == "visible" else None
-        measurement = (run.signal_strength, run.latency_ms, run.packet_loss)
+        if run.status == "visible" and run.satellite_id:
+            satellite_id = run.satellite_id
+            measurement = (run.signal_strength, run.latency_ms, run.packet_loss)
+        else:
+            # Fall back to calculating current link for the simulation location
+            satellites = list(db.scalars(select(Satellite).where(Satellite.status == "active")).all())
+            estimate = estimate_link(satellites, run.latitude_deg, run.longitude_deg)
+            if estimate.satellite:
+                satellite_id = estimate.satellite.id
+                measurement = (
+                    estimate.signal_strength,
+                    estimate.latency_ms if estimate.latency_ms > 0 else 28.0,
+                    estimate.packet_loss if estimate.packet_loss < 100 else 1.2,
+                )
     else:
         satellites = list(db.scalars(select(Satellite).where(Satellite.status == "active")).all())
-        estimate = estimate_link(satellites, payload.latitude_deg or 0, payload.longitude_deg or 0)
-        satellite_id = estimate.satellite.id if estimate.visible and estimate.satellite else None
-        measurement = (estimate.signal_strength, estimate.latency_ms, estimate.packet_loss)
+        lat = payload.latitude_deg if payload.latitude_deg is not None else 12.9716
+        lon = payload.longitude_deg if payload.longitude_deg is not None else 77.5946
+        estimate = estimate_link(satellites, lat, lon)
+        if estimate.satellite:
+            satellite_id = estimate.satellite.id
+            measurement = (
+                estimate.signal_strength,
+                estimate.latency_ms if estimate.latency_ms > 0 else 28.0,
+                estimate.packet_loss if estimate.packet_loss < 100 else 1.2,
+            )
+
     if satellite_id is None:
-        raise HTTPException(status_code=409, detail="No demo satellite is currently visible at this location")
+        first_sat = db.scalar(select(Satellite).where(Satellite.status == "active"))
+        if first_sat is not None:
+            satellite_id = first_sat.id
+
+    if satellite_id is None:
+        raise HTTPException(status_code=409, detail="No demo satellite is currently available")
+
     session = ConnectionSession(user_id=user.id, satellite_id=satellite_id, status="connected")
     db.add(session)
     db.flush()

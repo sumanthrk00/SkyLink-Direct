@@ -18,7 +18,18 @@ class Api {
     final response = await http.Response.fromStream(streamed);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       var message = 'Request failed (${response.statusCode})';
-      try { message = jsonDecode(response.body)['detail'] ?? message; } catch (_) {}
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['detail'] != null) {
+          if (decoded['detail'] is List) {
+            message = (decoded['detail'] as List)
+                .map((e) => e is Map ? (e['msg'] ?? e.toString()) : e.toString())
+                .join('; ');
+          } else {
+            message = decoded['detail'].toString();
+          }
+        }
+      } catch (_) {}
       throw Exception(message);
     }
     if (response.statusCode == 204 || response.body.isEmpty) return null;
@@ -55,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override void initState() { super.initState(); refresh(); }
   Future<void> refresh() async { try { final values=await Future.wait([widget.api.call('/users/me'),widget.api.call('/satellites?limit=100'),widget.api.call('/simulations?limit=10'),widget.api.call('/connections?limit=10')]); if(!mounted)return; setState(() {me=values[0];satellites=values[1]['items'];simulations=values[2]['items'];connections=values[3]['items'];latest=simulations.isEmpty?null:simulations.first;loading=false;error=null;}); } catch(e){if(mounted)setState((){loading=false;error=e.toString().replaceFirst('Exception: ','');});} }
   Future<void> simulate() async { setState(()=>busy=true); try { await widget.api.call('/simulations',method:'POST',body:{'latitude_deg':double.tryParse(lat.text)??0,'longitude_deg':double.tryParse(lon.text)??0}); await refresh(); } catch(e){setState(()=>error=e.toString().replaceFirst('Exception: ',''));} finally{if(mounted)setState(()=>busy=false);} }
-  Future<void> startSession() async { if(latest==null||latest!['status']!='visible'){setState(()=>error='Run a visible simulation before starting a session.');return;} setState(()=>busy=true); try{await widget.api.call('/connections',method:'POST',body:{'simulation_id':latest!['id']});await refresh();}catch(e){setState(()=>error=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);} }
+  Future<void> startSession() async { setState(()=>busy=true); try{final Map<String,dynamic> body=(latest!=null&&latest!['status']=='visible')?{'simulation_id':latest!['id']}:{'latitude_deg':double.tryParse(lat.text)??12.9716,'longitude_deg':double.tryParse(lon.text)??77.5946}; await widget.api.call('/connections',method:'POST',body:body); await refresh();}catch(e){setState(()=>error=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);} }
   Future<void> endSession(String id) async {setState(()=>busy=true);try{await widget.api.call('/connections/$id/end',method:'POST');await refresh();}catch(e){setState(()=>error=e.toString());}finally{if(mounted)setState(()=>busy=false);}}
   String v(dynamic value,[int digits=1])=>value is num?value.toStringAsFixed(digits):'—';
   @override Widget build(BuildContext context) { final titles=['Overview','Simulation','Satellites','Sessions','Profile']; if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator())); final active=connections.where((c)=>c['status']=='connected').isNotEmpty?connections.firstWhere((c)=>c['status']=='connected'):null; return Scaffold(appBar:AppBar(title:Row(children:[const Icon(Icons.satellite_alt,color:blue),const SizedBox(width:9),Text(titles[tab],style:const TextStyle(fontSize:18,fontWeight:FontWeight.w600))]),actions:[IconButton(onPressed:refresh,icon:const Icon(Icons.refresh)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:refresh,child:ListView(padding:const EdgeInsets.all(16),children:[if(error!=null)Card(color:const Color(0xFF3B2027),child:ListTile(title:Text(error!),trailing:IconButton(onPressed:()=>setState(()=>error=null),icon:const Icon(Icons.close)))),if(tab==0)...overview(active),if(tab==1)...simulationPage(),if(tab==2)...satellitePage(),if(tab==3)...sessionsPage(),if(tab==4)...profilePage()])),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const [NavigationDestination(icon:Icon(Icons.dashboard_outlined),label:'Home'),NavigationDestination(icon:Icon(Icons.insights),label:'Simulate'),NavigationDestination(icon:Icon(Icons.satellite_alt),label:'Satellites'),NavigationDestination(icon:Icon(Icons.wifi_tethering),label:'Sessions'),NavigationDestination(icon:Icon(Icons.person_outline),label:'Profile')])); }

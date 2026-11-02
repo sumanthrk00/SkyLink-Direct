@@ -50,6 +50,23 @@ class SatelliteResponse(BaseModel):
     inclination_deg: float
 
 
+class GroundStationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    latitude_deg: float
+    longitude_deg: float
+    status: str
+
+
+class GroundStationCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    latitude_deg: float = Field(ge=-90, le=90)
+    longitude_deg: float = Field(ge=-180, le=180)
+    status: str = Field(default="demo", max_length=30)
+
+
 class SimulationRequest(BaseModel):
     latitude_deg: float = Field(ge=-90, le=90)
     longitude_deg: float = Field(ge=-180, le=180)
@@ -94,6 +111,52 @@ class ConnectionResponse(BaseModel):
     status: str
     started_at: datetime
     ended_at: datetime | None
+
+
+class PassPredictionItem(BaseModel):
+    satellite_id: str
+    satellite_name: str
+    aos_utc: datetime
+    tca_utc: datetime
+    los_utc: datetime
+    max_elevation_deg: float
+    duration_seconds: int
+    tca_distance_km: float
+    tca_azimuth_deg: float
+
+
+class PassPredictionResponse(BaseModel):
+    observer_latitude_deg: float
+    observer_longitude_deg: float
+    start_utc: datetime
+    duration_hours: float
+    min_elevation_deg: float
+    total_passes: int
+    passes: list[PassPredictionItem]
+
+
+class SatelliteTelemetryResponse(BaseModel):
+    satellite_id: UUID
+    name: str
+    orbit_type: str
+    altitude_km: float
+    timestamp_utc: datetime
+    subsatellite_latitude_deg: float
+    subsatellite_longitude_deg: float
+    orbital_velocity_km_s: float
+    orbital_period_minutes: float
+    ecef_coordinates_km: dict[str, float]
+
+
+class SimulationReportResponse(BaseModel):
+    simulation_id: UUID
+    created_at: datetime
+    observer_location: dict[str, float]
+    satellite: dict[str, str | float] | None
+    rf_link_budget: dict[str, float | str]
+    throughput_capacity: dict[str, float]
+    channel_status: str
+    prototype_disclaimer: str
 
 
 class PageResponse(BaseModel):

@@ -1,17 +1,44 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.models import GroundStation, Role, Satellite
+from app.core.security import hash_password
+from app.models.models import GroundStation, Role, Satellite, User
 
 
 def initialize_reference_data(db: Session) -> None:
     for role_name in ("user", "admin"):
         if db.scalar(select(Role).where(Role.name == role_name)) is None:
             db.add(Role(name=role_name))
+    db.flush()
+
+    admin_role = db.scalar(select(Role).where(Role.name == "admin"))
+    if admin_role and db.scalar(select(User).where(User.email == "admin@skylink.direct")) is None:
+        db.add(User(
+            name="Demo Administrator",
+            email="admin@skylink.direct",
+            password_hash=hash_password("AdminSecure2026!"),
+            role=admin_role,
+        ))
+
     satellites = (
         ("Demo LEO 01", 550.0, 53.0, 0.0, 0.0),
         ("Demo LEO 02", 550.0, 53.0, 120.0, 120.0),
         ("Demo LEO 03", 1200.0, 70.0, 240.0, 240.0),
+        ("Demo LEO 04", 550.0, 53.0, 60.0, 45.0),
+        ("Demo LEO 05", 550.0, 53.0, 180.0, 90.0),
+        ("Demo LEO 06", 550.0, 53.0, 240.0, 135.0),
+        ("Demo LEO 07", 550.0, 53.0, 300.0, 180.0),
+        ("Demo LEO 08", 600.0, 45.0, 30.0, 225.0),
+        ("Demo LEO 09", 600.0, 45.0, 90.0, 270.0),
+        ("Demo LEO 10", 600.0, 45.0, 150.0, 315.0),
+        ("Demo LEO 11", 600.0, 45.0, 210.0, 60.0),
+        ("Demo LEO 12", 600.0, 45.0, 270.0, 150.0),
+        ("Demo LEO 13", 550.0, 53.0, 330.0, 210.0),
+        ("Demo LEO 14", 600.0, 53.0, 45.0, 280.0),
+        ("Demo LEO 15", 600.0, 53.0, 105.0, 340.0),
+        ("Demo LEO 16", 550.0, 53.0, 165.0, 40.0),
+        ("Demo LEO 17", 550.0, 53.0, 225.0, 100.0),
+        ("Demo LEO 18", 600.0, 53.0, 285.0, 160.0),
     )
     for name, altitude, inclination, raan, phase in satellites:
         if db.scalar(select(Satellite).where(Satellite.name == name)) is None:
