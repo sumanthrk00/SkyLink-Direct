@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import AdminModule from './components/AdminModule';
+import D2DDashboard from './components/D2DDashboard';
 import { Activity, Antenna, ArrowDownToLine, ArrowUpFromLine, Bell, ChevronDown, CircleHelp, Clock3, Command, Download, FileText, Gauge, LogOut, MapPin, Menu, Orbit, Play, Radio, RefreshCw, Satellite, Settings, ShieldCheck, Signal, Square, UserRound, Wifi, X } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -44,10 +46,17 @@ async function request<T>(path: string, token: string | null, init: RequestInit 
       }
     } catch {
       if (text.includes('ECONNREFUSED')) {
-        detail = 'Cannot connect to backend server. Please verify the backend is running on port 8000 (start-backend.bat).';
+        detail = 'Cannot connect to backend server. Please verify the backend is running on port 8000 (start.bat or start-backend.bat).';
       }
     }
-    const err = new Error(detail || `Request failed (${response.status})`);
+    if (!detail) {
+      if (response.status === 500) {
+        detail = 'Backend server on port 8000 is not reachable. Please start the backend using start.bat or start-backend.bat.';
+      } else {
+        detail = `Request failed (${response.status})`;
+      }
+    }
+    const err = new Error(detail);
     (err as any).status = response.status;
     throw err;
   }
@@ -62,19 +71,31 @@ function getSavedToken(): string | null {
     const parts = saved.split('.');
     if (parts.length !== 3) {
       localStorage.removeItem('skylink-token');
+      localStorage.removeItem('skylink-user');
       return null;
     }
     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
     if (payload.exp && typeof payload.exp === 'number') {
       if (Date.now() / 1000 >= payload.exp - 5) {
-        // Token has expired; silently clear it so unneeded 401s are prevented
+        // Token has expired; silently clear it
         localStorage.removeItem('skylink-token');
+        localStorage.removeItem('skylink-user');
         return null;
       }
     }
     return saved;
   } catch {
     localStorage.removeItem('skylink-token');
+    localStorage.removeItem('skylink-user');
+    return null;
+  }
+}
+
+function getSavedUser(): User | null {
+  try {
+    const raw = localStorage.getItem('skylink-user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
     return null;
   }
 }
@@ -89,7 +110,7 @@ const PRESET_LOCATIONS = [
 
 export default function App() {
   const [token, setToken] = useState<string | null>(getSavedToken);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => (getSavedToken() ? getSavedUser() : null));
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [page, setPage] = useState('Overview');
   const [mobileNav, setMobileNav] = useState(false);
@@ -125,6 +146,7 @@ export default function App() {
       // Step 1: Validate session identity first. If token is invalid or expired, stops immediately without firing 5 parallel queries
       const me = await request<User>('/users/me', activeToken);
       setUser(me);
+      localStorage.setItem('skylink-user', JSON.stringify(me));
 
       // Step 2: Session is confirmed valid; load workspace datasets in parallel
       const [sats, sims, conns, eventPage, stations] = await Promise.all([
@@ -145,11 +167,12 @@ export default function App() {
     } catch (e: any) {
       if (e?.status === 401 || (e instanceof Error && e.message.toLowerCase().includes('authentication required'))) {
         localStorage.removeItem('skylink-token');
+        localStorage.removeItem('skylink-user');
         setToken(null);
         setUser(null);
         setError('');
       } else {
-        setError(e instanceof Error ? e.message : 'Could not load dashboard');
+        setError(e instanceof Error ? e.message : 'Could not sync with backend server on port 8000');
       }
     }
   }, []);
@@ -191,6 +214,7 @@ export default function App() {
   async function signOut() {
     if (token) await request('/auth/logout', token, { method: 'POST' }).catch(() => undefined);
     localStorage.removeItem('skylink-token');
+    localStorage.removeItem('skylink-user');
     setToken(null);
     setUser(null);
     setError('');
@@ -404,6 +428,38 @@ export default function App() {
     }
   }
 
+  if (token && !user) {
+    return (
+      <div className="auth-shell">
+        <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#90a5bc', gap: '14px', width: '100%' }}>
+          <div className="tag-orb" style={{ width: '42px', height: '42px' }}>
+            <Orbit size={28} />
+          </div>
+          <b style={{ color: '#dce6f1', fontSize: '13px', letterSpacing: '0.05em' }}>Resuming satellite workspace…</b>
+          {error && (
+            <div className="alert error" style={{ maxWidth: 360, marginTop: 12 }}>
+              <span>{error}</span>
+              <button
+                type="button"
+                className="btn secondary sm"
+                style={{ marginTop: 8 }}
+                onClick={() => {
+                  localStorage.removeItem('skylink-token');
+                  localStorage.removeItem('skylink-user');
+                  setToken(null);
+                  setUser(null);
+                  setError('');
+                }}
+              >
+                Return to Login
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!token || !user) {
     return (
       <div className="auth-shell">
@@ -516,6 +572,7 @@ export default function App() {
       section: 'WORKSPACE',
       items: [
         ['Overview', Gauge],
+        ['Direct-to-Device', Wifi],
         ['Satellite network', Orbit],
         ['Simulation', Activity],
         ['Ground stations', Antenna],
@@ -1088,26 +1145,29 @@ export default function App() {
               )}
             </section>
           )}
+          {page === 'Direct-to-Device' && (
+            <D2DDashboard
+              token={token!}
+              latitude={latitude}
+              longitude={longitude}
+              onUpdateCoordinates={(lat, lon) => {
+                setLatitude(lat);
+                setLongitude(lon);
+              }}
+            />
+          )}
           {page === 'Administration' && (
-            <section className="panel page-panel">
-              <div className="panel-head">
-                <div>
-                  <h3>System overview</h3>
-                  <p>Administrative statistics for the demo environment.</p>
-                </div>
-                <span className="estimate-chip"><span /> ADMIN</span>
-              </div>
-              {admin ? (
-                <div className="metric-grid admin-grid">
-                  {metric(UserRound, 'Registered users', String(admin.total_users), '', 'Across all accounts')}
-                  {metric(Satellite, 'Demo satellites', String(admin.total_satellites), '', 'Synthetic catalogue', 'violet')}
-                  {metric(Activity, 'Simulation runs', String(admin.total_simulations), '', 'User generated', 'green')}
-                  {metric(Radio, 'Active sessions', String(admin.active_sessions), '', `${admin.network_events} network events`, 'orange')}
-                </div>
-              ) : (
-                <div className="empty-row">Administrator access required.</div>
-              )}
-            </section>
+            <AdminModule
+              token={token!}
+              adminOverview={admin as any}
+              onRefreshOverview={async () => {
+                if (token) {
+                  const data = await request<Record<string, number>>('/admin/dashboard', token).catch(() => null);
+                  setAdmin(data);
+                }
+              }}
+              metricRenderer={metric}
+            />
           )}
           {telemetry && (
             <div className="modal-backdrop" onClick={() => setTelemetry(null)}>

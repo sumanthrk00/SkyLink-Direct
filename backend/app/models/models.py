@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -40,6 +40,7 @@ class User(TimestampMixin, Base):
     devices: Mapped[list["Device"]] = relationship(back_populates="user")
     simulations: Mapped[list["SimulationRun"]] = relationship(back_populates="user")
     connections: Mapped[list["ConnectionSession"]] = relationship(back_populates="user")
+    connectivity_tests: Mapped[list["ConnectivityTest"]] = relationship(back_populates="user")
 
 
 class Device(TimestampMixin, Base):
@@ -66,6 +67,50 @@ class Satellite(TimestampMixin, Base):
     phase_deg: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     simulations: Mapped[list["SimulationRun"]] = relationship(back_populates="satellite")
     connections: Mapped[list["ConnectionSession"]] = relationship(back_populates="satellite")
+    gateways: Mapped[list["SatelliteGateway"]] = relationship(secondary="gateway_satellites", back_populates="satellites")
+
+
+
+gateway_satellites = Table(
+    "gateway_satellites",
+    Base.metadata,
+    Column("gateway_id", Uuid(as_uuid=True), ForeignKey("satellite_gateways.id", ondelete="CASCADE"), primary_key=True),
+    Column("satellite_id", Uuid(as_uuid=True), ForeignKey("satellites.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class SatelliteGateway(TimestampMixin, Base):
+    __tablename__ = "satellite_gateways"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    latitude_deg: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude_deg: Mapped[float] = mapped_column(Float, nullable=False)
+    elevation_m: Mapped[float] = mapped_column(Float, nullable=False, default=50.0)
+    feeder_frequency_ghz: Mapped[float] = mapped_column(Float, nullable=False, default=28.5)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="operational")
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=False, default="127.0.0.1")
+    uplink_capacity_gbps: Mapped[float] = mapped_column(Float, nullable=False, default=10.0)
+    downlink_capacity_gbps: Mapped[float] = mapped_column(Float, nullable=False, default=40.0)
+    satellites: Mapped[list["Satellite"]] = relationship(secondary="gateway_satellites", back_populates="gateways")
+
+
+class ConnectivityTest(Base):
+    __tablename__ = "connectivity_tests"
+    __table_args__ = (Index("ix_connectivity_tests_created_at", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    client_platform: Mapped[str] = mapped_column(String(30), nullable=False, default="mobile_android")
+    ping_latency_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    download_speed_mbps: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    upload_speed_mbps: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    packet_loss_percent: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    test_type: Mapped[str] = mapped_column(String(30), nullable=False, default="internet_speedtest")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
+    server_location: Mapped[str] = mapped_column(String(100), nullable=False, default="Local Gateway")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    user: Mapped["User"] = relationship(back_populates="connectivity_tests")
 
 
 class GroundStation(TimestampMixin, Base):
@@ -156,6 +201,21 @@ class RevokedToken(Base):
 
     jti: Mapped[str] = mapped_column(String(36), primary_key=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    __table_args__ = (Index("ix_audit_logs_created_at", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    admin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    admin_email: Mapped[str] = mapped_column(String(255), nullable=False, default="system")
+    action: Mapped[str] = mapped_column(String(60), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    details: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
 def model_dict(model: Any) -> dict[str, Any]:

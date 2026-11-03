@@ -31,3 +31,73 @@
 .result-metric span{display:block;font-size:9px;color:#7d94aa;text-transform:uppercase}
 .result-metric b{font-size:13px;color:#e1ebf5}
 .result-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+/* Complete Administration System Styles */
+.admin-subnav{display:flex;gap:6px;padding:0 20px 16px;border-bottom:1px solid #1c2e42;overflow-x:auto;margin-bottom:18px}
+.admin-subtab{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:6px;border:1px solid #20354b;background:#0f1c2b;color:#8fa5bc;font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 0.15s ease}
+.admin-subtab:hover{background:#15273b;color:#dbe7f3;border-color:#2a4563}
+.admin-subtab.active{background:#14334f;border-color:#3b9fe4;color:#5ec2ff;font-weight:600}
+.admin-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 20px 14px;flex-wrap:wrap}
+.admin-search-box{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#0c1724;border:1px solid #1e334a;border-radius:6px;flex:1;min-width:200px;max-width:340px}
+.admin-search-box input{background:none;border:none;color:#dce6f1;font-size:11px;outline:none;width:100%}
+.admin-search-box svg{color:#6c849e;flex:none}
+.admin-filter-select{padding:7px 12px;background:#0c1724;border:1px solid #1e334a;border-radius:6px;color:#8fa5bc;font-size:11px;outline:none;cursor:pointer}
+.admin-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:4px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.admin-badge.admin{background:#2b1f48;color:#bca6ff;border:1px solid #4a367d}
+.admin-badge.user{background:#13273b;color:#72bcf7;border:1px solid #204566}
+.admin-badge.active{background:#102a1e;color:#57d99d;border:1px solid #1e593e}
+.admin-badge.inactive,.admin-badge.decommissioned{background:#331f24;color:#f28b8b;border:1px solid #5a3038}
+.admin-badge.connected{background:#0f2e24;color:#4ee3a3;border:1px solid #196048}
+.admin-badge.ended{background:#1a2430;color:#7f95ac;border:1px solid #263647}
+.admin-badge.testing,.admin-badge.demo{background:#2e2613;color:#e5b95f;border:1px solid #59461d}
+.admin-badge.operational{background:#12283a;color:#5bbff7;border:1px solid #1f486b}
+.admin-badge.visible{background:#102a1e;color:#57d99d;border:1px solid #1e593e}
+.admin-badge.no_visibility{background:#2e2613;color:#e5b95f;border:1px solid #59461d}
+.admin-badge.failed{background:#331f24;color:#f28b8b;border:1px solid #5a3038}
+.health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:0 20px 20px}
+.health-card{background:#0f1c2b;border:1px solid #1c2e42;border-radius:8px;padding:16px}
+.health-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.health-card-header h4{margin:0;font-size:12px;color:#dce6f1;display:flex;align-items:center;gap:8px}
+.health-stat-list{display:grid;gap:7px}
+.health-stat-row{display:flex;justify-content:space-between;font-size:10px;padding:4px 0;border-bottom:1px solid #162637}
+.health-stat-row:last-child{border-bottom:none}
+.health-stat-row span{color:#7f96ad}
+.health-stat-row b{color:#d7e4f1}
+.admin-table-wrap{padding:0 20px 20px}
+.admin-action-row{display:flex;gap:6px;align-items:center}
+.btn-terminate{padding:4px 8px;font-size:10px;border-radius:4px;border:1px solid #6b2f3a;background:#2d171d;color:#ff9e9e;cursor:pointer}
+.btn-terminate:hover{background:#3f1f28;color:#ffcccc}
+
+/* Direct-to-Device (D2D) Dashboard Styles */
+.d2d-dashboard{width:100%}
+.d2d-header-panel{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;background:#0d1825;border:1px solid #1c2f44;border-radius:8px;flex-wrap:wrap}
+.d2d-status-badges{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.d2d-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;font-size:11px}
+.d2d-badge.online{background:#0e281b;border:1px solid #1a5639;color:#53db99}
+.d2d-badge.satellite{background:#13283c;border:1px solid #234d70;color:#5cc2fb}
+.d2d-badge.cellular{background:#231f38;border:1px solid #443670;color:#bca9ff}
+.d2d-coord-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;background:#111e2d;border:1px solid #1d3349;color:#9cb1c5;font-size:11px}
+.d2d-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.routing-path-container{display:flex;gap:8px;align-items:stretch;overflow-x:auto;padding:18px 20px}
+.routing-node-card{flex:1;min-width:215px;background:#111d2c;border:1px solid #1e334a;border-radius:8px;padding:14px;display:flex;flex-direction:column}
+.routing-node-card.status-active{border-color:#20523d}
+.routing-node-card.status-orbiting{border-color:#224f74}
+.routing-node-card.status-operational{border-color:#265c87}
+.routing-node-card.status-online{border-color:#20523d}
+.routing-node-card.status-degraded{border-color:#5c4722}
+.routing-node-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.routing-node-step{font-size:9px;font-weight:700;color:#6b8298;text-transform:uppercase;letter-spacing:1px}
+.routing-badge{font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;font-weight:600}
+.routing-badge.active,.routing-badge.online{background:#0d291c;color:#53db99;border:1px solid #195b3b}
+.routing-badge.orbiting{background:#12293e;color:#5cc2fb;border:1px solid #204c6e}
+.routing-badge.operational{background:#112f45;color:#66c8ff;border:1px solid #245e88}
+.routing-badge.degraded{background:#322413;color:#f2b258;border:1px solid #5d451f}
+.routing-node-title{font-size:13px;font-weight:700;color:#dce6f1;margin-bottom:4px}
+.routing-node-role{font-size:10px;color:#56beef;font-weight:500;margin-bottom:6px}
+.routing-node-proto{font-size:9px;color:#8ba5be;font-family:monospace;background:#09131e;padding:3px 6px;border-radius:4px;margin-bottom:8px;align-self:flex-start}
+.routing-node-details{font-size:9px;color:#7890a8;line-height:1.4;margin-top:auto}
+.routing-connector{display:flex;align-items:center;justify-content:center;color:#355375;flex-shrink:0}
+.sat-detail-box{display:flex;flex-direction:column}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite}
+

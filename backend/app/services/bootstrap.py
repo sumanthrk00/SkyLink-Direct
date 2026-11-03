@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.models.models import GroundStation, Role, Satellite, User
+from app.models.models import GroundStation, Role, Satellite, SatelliteGateway, User
 
 
 def initialize_reference_data(db: Session) -> None:
@@ -40,9 +40,11 @@ def initialize_reference_data(db: Session) -> None:
         ("Demo LEO 17", 550.0, 53.0, 225.0, 100.0),
         ("Demo LEO 18", 600.0, 53.0, 285.0, 160.0),
     )
+    all_sats = []
     for name, altitude, inclination, raan, phase in satellites:
-        if db.scalar(select(Satellite).where(Satellite.name == name)) is None:
-            db.add(Satellite(
+        sat = db.scalar(select(Satellite).where(Satellite.name == name))
+        if sat is None:
+            sat = Satellite(
                 name=name,
                 orbit_type="LEO",
                 altitude_km=altitude,
@@ -50,7 +52,35 @@ def initialize_reference_data(db: Session) -> None:
                 raan_deg=raan,
                 phase_deg=phase,
                 status="active",
-            ))
+            )
+            db.add(sat)
+        all_sats.append(sat)
+    db.flush()
+
     if db.scalar(select(GroundStation).where(GroundStation.name == "Demo Ground Station")) is None:
         db.add(GroundStation(name="Demo Ground Station", latitude_deg=12.9716, longitude_deg=77.5946))
+
+    # Reference Satellite Gateways
+    gateways_data = (
+        ("Bangalore Teleport Gateway", 13.0827, 77.5877, 50.0, 28.5, "operational", "192.168.10.1", 10.0, 40.0),
+        ("London Teleport Station", 51.5074, -0.1278, 25.0, 28.5, "operational", "192.168.20.1", 10.0, 40.0),
+        ("California West Gateway", 37.7749, -122.4194, 15.0, 29.0, "operational", "192.168.30.1", 15.0, 50.0),
+    )
+    for name, lat, lon, elev, freq, status, ip, up_cap, down_cap in gateways_data:
+        gw = db.scalar(select(SatelliteGateway).where(SatelliteGateway.name == name))
+        if gw is None:
+            gw = SatelliteGateway(
+                name=name,
+                latitude_deg=lat,
+                longitude_deg=lon,
+                elevation_m=elev,
+                feeder_frequency_ghz=freq,
+                status=status,
+                ip_address=ip,
+                uplink_capacity_gbps=up_cap,
+                downlink_capacity_gbps=down_cap,
+                satellites=all_sats[:6],
+            )
+            db.add(gw)
+
     db.commit()

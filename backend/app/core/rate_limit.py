@@ -1,4 +1,5 @@
 from collections import defaultdict, deque
+import os
 from threading import Lock
 from time import monotonic
 
@@ -10,7 +11,14 @@ _attempts: dict[str, deque[float]] = defaultdict(deque)
 _lock = Lock()
 
 
+def reset_rate_limits() -> None:
+    with _lock:
+        _attempts.clear()
+
+
 def enforce_auth_rate_limit(request: Request) -> None:
+    if os.getenv("TESTING") == "1":
+        return
     client = request.client.host if request.client else "unknown"
     key = f"{client}:{request.url.path}"
     now = monotonic()

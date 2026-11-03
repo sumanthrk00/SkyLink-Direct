@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api import admin, auth, connections, events, ground_stations, measurements, satellites, simulations, users
+from app.api import admin, auth, connections, events, gateways, ground_stations, measurements, network, satellites, simulations, users
 from app.database import Base, SessionLocal, engine
 from app.models import models  # noqa: F401
 from app.services.bootstrap import initialize_reference_data
@@ -46,7 +46,7 @@ api = "/api/v1"
 for router in (
     auth.router, users.router, satellites.router, simulations.router,
     connections.router, measurements.router, events.router, admin.router,
-    ground_stations.router,
+    ground_stations.router, gateways.router, network.router,
 ):
     app.include_router(router, prefix=api)
 
@@ -57,5 +57,6 @@ async def database_error_handler(_: Request, __: SQLAlchemyError) -> JSONRespons
 
 
 @app.get("/health", tags=["health"])
+@app.get("/api/v1/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok", "connectivity": "simulation_only"}
